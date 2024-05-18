@@ -1,41 +1,12 @@
-import os, re, json, mokkari, sys
-from import_issues import import_issues
+import os, re, json, sys
 from file_rename import rename_folder
-from create_series import create_series_file
-from datetime import datetime as dt
+from api.metron import Metron, Series
 
 class Settings:
     def __init__(self, username, password, last_run):
         self.username = username
         self.password = password
         self.last_run = last_run
-
-class Series:
-    def __init__(self, data):
-        self.type = ''
-        self.publisher = data.publisher.name
-        self.imprint = ''
-        self.name = data.name
-        self.comicid = data.id
-        self.year = f"{data.year_began}"
-        self.description_text = data.desc
-        self.description_formatted = ''
-        self.volume = f"{data.year_began}"
-        self.booktype = data.series_type.name
-        self.collects = ''
-        self.comic_image = ''
-        self.total_issues = data.issue_count
-        self.publication_run = f"{data.year_began}"
-        self.status = 'Continuing'
-
-    def set_publication_run(self, start, end):
-        if dt.now().year > end:
-            #If the Current Year is later than the Series End Year
-            self.status = "Ended"
-            if start == end:
-                self.publication_run = f"{start}"
-            else:
-                self.publication_run = f"{start} - {end}"
 
 def save_settings():
 
@@ -90,20 +61,13 @@ def get_comic_series_info(settings, metron, folders, directory):
             last_modified_folder = os.path.getmtime(path)
             
             if float(last_modified_folder) > float(settings.last_run):
-                try:
-                    series = metron.series(id)
-                    series_file = Series(series)
-                    series_file.set_publication_run(series.year_began, series.year_end)
-                except mokkari.exceptions.ApiError as e:
-                    print(e)
-                    series = None
-                except:
-                    print("Error gettings series")
-                    series = None
 
+                #Retrieve Series Information
+                series = Series(metron.series(id))
                 if series != None:
+
                     #Creating a new name for the folder
-                    newFolder = f"{series.name} ({series.year_began}) {'{'}mt-{series.id}{'}'}"
+                    newFolder = f"{series.name} ({series.year}) {'{'}mt-{series.comicid}{'}'}"
                     newFolder = newFolder.replace(":","_")
 
                     #Checking if the folder names are the same
@@ -111,10 +75,9 @@ def get_comic_series_info(settings, metron, folders, directory):
                         print("Renamed:", newFolder )
                         newPath = os.path.join(directory,newFolder)
                         rename_folder(path, newPath)
-                    
-                    #import_issues(data)
-    #
-                    create_series_file(series_file.__dict__, directory, newFolder)
+
+                    #Save the series.json File
+                    series.saveSeries(directory, newFolder)
             else:
                 print('- No Changes: ', folder)
         else:
@@ -128,7 +91,7 @@ def main():
 
     settings = Settings(data.get('username',''), data.get('password',''), data.get('last_run',0))
 
-    metron = mokkari.api(settings.username, settings.password)
+    metron = Metron(settings.username, settings.password)
 
 
     if os.path.exists(directory):
