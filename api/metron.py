@@ -1,16 +1,36 @@
 import requests, json
 from datetime import datetime as dt
+import time
 
 class Metron ():
     def __init__(self, username, password):
         self.username = username
         self.password = password
         self.baseUrl = "https://metron.cloud/api/"
+        self.apiLimiterTime = 0
+        self.apiLimiterCounter = 0
+    
+    #API Limit Check
+    def apiLimiter(self):
+        if self.apiLimiterTime == 0:
+            self.apiLimiterTime = int(time.time())
+
+        if (int(time.time()) - self.apiLimiterTime) < 60:
+            if self.apiLimiterCounter > 29:
+                time.sleep(61 - (int(time.time()) - self.apiLimiterTime))
+                self.apiLimiterCounter = 1
+            else:
+                self.apiLimiterCounter+=1
+        else:
+            self.apiLimiterTime = int(time.time())
+            self.apiLimiterCounter = 1
 
     def series(self, id):
         try:
             session = requests.Session()
             session.auth = (self.username, self.password)
+
+            self.apiLimiter()
             response = session.get(f"{self.baseUrl}series/{id}/")
 
             #Checking if the request was successful
@@ -18,7 +38,8 @@ class Metron ():
                 return None
             
             series = response.json()
-            
+        
+            self.apiLimiter()
             response = session.get(f"{self.baseUrl}series/{id}/issue_list/")
 
             #Checking if the request was successful
