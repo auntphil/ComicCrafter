@@ -17,35 +17,45 @@ class Metron ():
             if(response.status_code != 200):
                 return None
             
+            series = response.json()
+            
+            response = session.get(f"{self.baseUrl}series/{id}/issue_list/")
+
+            #Checking if the request was successful
+            if(response.status_code != 200):
+                series['issues'] = {}
+            else:
+                series['issues'] = response.json()
+            
             #Loading Response into Dictionary
-            return response.json()
+            return series
 
         except requests.exceptions.RequestException as e:
             print(f"Error: {e}")
             return None
         
-        
 class Series:
-    def __init__(self, data):
-        if data == None:
+    def __init__(self, series):
+        if series == None:
             return None
 
         self.type = ''
-        self.publisher = f"{data['publisher']['name']}"
+        self.publisher = f"{series['publisher']['name']}"
         self.imprint = ''
-        self.name = f"{data['name']}"
-        self.comicid = data['id']
-        self.year = data['year_began']
-        self.year_end = data['year_end']
-        self.description_text = f"{data['desc']}"
+        self.name = f"{series['name']}"
+        self.comicid = series['id']
+        self.year = series['year_began']
+        self.year_end = series['year_end']
+        self.description_text = f"{series['desc']}"
         self.description_formatted = ''
-        self.volume = f"{data['year_began']}"
-        self.booktype = f"{data['series_type']['name']}"
+        self.volume = f"{series['year_began']}"
+        self.booktype = f"{series['series_type']['name']}"
         self.collects = ''
         self.comic_image = ''
-        self.total_issues = data['issue_count']
-        self.publication_run = f"{data['year_began']}"
+        self.total_issues = series['issue_count']
+        self.publication_run = f"{series['year_began']}"
         self.status = 'Continuing'
+        self.issues = series["issues"]["results"]
 
         if dt.now().year > self.year_end:
             #If the Current Year is later than the Series End Year
